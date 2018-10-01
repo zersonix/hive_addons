@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+reboot(){
+sync
+mount -o remount,ro /hive-config
+
+echo 1 > /proc/sys/kernel/sysrq
+echo s > /proc/sysrq-trigger
+echo u > /proc/sysrq-trigger
+echo "Rebooting"
+echo b > /proc/sysrq-trigger
+
+sleep 5
+sudo reboot
+sleep 2
+sudo shutdown -r now
+exit 0
+}
+
+lg='./my-reboot.log'
+
+while true; do
+echo "------------------------" >> $lg
+for (( k=0; k <= 4; k++ ))
+do
+dt=`date '+%d/%m/%Y_%H:%M:%S'`
+echo $dt
+#echo $dt >> $lg.
+t=`nvidia-smi --query-gpu=gpu_name,gpu_bus_id --format=csv,noheader -i $k`
+#echo $t >> $lg.
+#echo $t
+#exit 0
+
+z=$(((k + 1) * 1))
+
+if [ "$z" -lt 10 ]; then
+#if [[ (("$z" < 10)) ]]; then
+mm="m0$z"
+fi
+if [ "$z" -ge 10 ]; then
+mm="m$z"
+fi
+
+#echo "k=$k z=$z mm=$mm"
+
+screens=`screen -ls $mm |  grep -E "[0-9]+\." | cut -d. -f1 | awk '{print $1}'`
+#echo $screens
+if [[ -z $screens ]]; then
+    echo "No $mm screens found"
+    cd /home/user
+    echo "restarting $mm" >> $lg
+    my restart $mm
+fi
+
+
+
+s=`grep -q 'GeForce GTX' <<< $t && echo "good" || reboot`
+echo $k $s
+echo $dt $t $k $s >> $lg
+
+sleep 10
+done
+done
